@@ -1,0 +1,20 @@
+#######################################
+# Syntax Coloring Map For Test
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+LEDCStepper	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+connectToPins		KEYWORD2
+setPWMDutyCycle		KEYWORD2
+setMicsteps	 	KEYWORD2
+setFreqUpdatePeriod	KEYWORD2
+accelerate 		KEYWORD2
+accelerateSerialOut	KEYWORD2
