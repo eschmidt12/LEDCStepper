@@ -18,3 +18,7 @@ setMicsteps	 	KEYWORD2
 setFreqUpdatePeriod	KEYWORD2
 accelerate 		KEYWORD2
 accelerateSerialOut	KEYWORD2
+setupAccelerate KEYWORD2
+processAccelerate KEYWORD2
+processAccelerateSerialOut  KEYWORD2
+motionComplete KEYWORD2
