@@ -48,8 +48,12 @@ class LEDCStepper
     void setFreqUpdatePeriod(float freqUpdatePeriodVal);
     void setPWMDutyCycle(byte pwmDutyCycleVal);
     void connectToPins(byte stepPinNumber, byte dirPinNumber, byte ledChannelNumber);
-    void accelerate(float desiredSpeedInFullStepsPerSecond, float accelerationInFullStepsPerSecondPerSecond);
-    void accelerateSerialOut(Stream * SerialPort, float desiredSpeedInFullStepsPerSecond, float accelerationInFullStepsPerSecondPerSecond);
+    void setupAccelerate(float targetSpeedInFullStepsPerSecond, float accelerationInFullStepsPerSecondPerSecond);
+    void processAccelerate();
+    void processAccelerateSerialOut(Stream * SerialPort);
+    void accelerate(float targetSpeedInFullStepsPerSecond, float accelerationInFullStepsPerSecondPerSecond);
+    void accelerateSerialOut(Stream * SerialPort, float targetSpeedInFullStepsPerSecond, float accelerationInFullStepsPerSecondPerSecond);
+    bool motionComplete();
   private:
     byte stepPin;
     byte dirPin;
@@ -62,8 +66,18 @@ class LEDCStepper
     unsigned int fullStepsPerMillimeter;
     long currentPosition_InFullSteps;
     float currentSpeed_InFullStepsPerSecond;
-    float desiredSpeed_InFullStepsPerSecond;
+    bool millisInitiated;
+    unsigned long currentMillis;
+    unsigned long lastMillis;
+    float targetSpeed_InFullStepsPerSecond;
     float acceleration_InFullStepsPerSecondPerSecond;
+    long currentFrequency;
+    long targetFrequency;
+    float rampTimeinMS;
+    long freqIntervals;
+    long currentFreqInterval;
+    long frequencyIntervalInHz;
+    bool motionCompleteStatus;
 };
 
 #endif
