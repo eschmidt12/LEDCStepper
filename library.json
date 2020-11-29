@@ -1,0 +1,19 @@
+{
+    "name":"LEDCStepper",
+    "description":"Stepper motor control library for ESP32 using LEDC frequency generator peripheral",
+    "keywords":"LEDC,stepper,motor,frequency,generator",
+    "authors":
+    {
+      "name": "eschmidt12",
+      "maintainer": true
+    },
+    "repository":
+    {
+      "type": "git",
+      "url": "https://github.com/eschmidt12/LEDCStepper.git"
+    },
+    "version": "0.0.1",
+    "license": "MIT",
+    "frameworks": "arduino",
+    "platforms": ["espressif32"]
+  }
