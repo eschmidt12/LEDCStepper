@@ -46,6 +46,7 @@ class LEDCStepper
     LEDCStepper();
     void setMicsteps(unsigned int micstepsVal);
     void setFreqUpdatePeriod(float freqUpdatePeriodVal);
+    void setPWMResolution(byte pwmResolutionVal);
     void setPWMDutyCycle(byte pwmDutyCycleVal);
     void connectToPins(byte stepPinNumber, byte dirPinNumber, byte ledChannelNumber);
     void setupAccelerate(float targetSpeedInFullStepsPerSecond, float accelerationInFullStepsPerSecondPerSecond);
@@ -58,26 +59,32 @@ class LEDCStepper
     byte stepPin;
     byte dirPin;
     byte ledChannel;
+
     byte pwmResolution;
     byte pwmDutyCycle;
     float freqUpdatePeriod;
+
     unsigned int micsteps;
     unsigned int fullStepsPerRevolution;
     unsigned int fullStepsPerMillimeter;
+
     long currentPosition_InFullSteps;
     float currentSpeed_InFullStepsPerSecond;
-    bool millisInitiated;
-    unsigned long currentMillis;
-    unsigned long lastMillis;
-    float targetSpeed_InFullStepsPerSecond;
-    float acceleration_InFullStepsPerSecondPerSecond;
+    bool currentDirection; //1 = positive, 0 = negative
     long currentFrequency;
+    float targetSpeed_InFullStepsPerSecond;
+    bool targetDirection; //1 = positive, 0 = negative
     long targetFrequency;
-    float rampTimeinMS;
-    long freqIntervals;
-    long currentFreqInterval;
+
+    float acceleration_InFullStepsPerSecondPerSecond;
+    float rampTimeInMS;
     long frequencyIntervalInHz;
+    long frequencyIntervalCount;
+    long currentFrequencyInterval;
     bool motionCompleteStatus;
+
+    bool millisInitiated;
+    unsigned long lastMillis;
 };
 
 #endif

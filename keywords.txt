@@ -14,6 +14,7 @@ LEDCStepper	KEYWORD1
 
 connectToPins		KEYWORD2
 setPWMDutyCycle		KEYWORD2
+setPWMResolution  KEYWORD2
 setMicsteps	 	KEYWORD2
 setFreqUpdatePeriod	KEYWORD2
 accelerate 		KEYWORD2
