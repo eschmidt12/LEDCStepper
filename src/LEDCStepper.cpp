@@ -54,12 +54,13 @@ LEDCStepper::LEDCStepper()
   fullStepsPerMillimeter = 25;		//Not implemented yet
   currentPosition_InFullSteps = 0;
   currentSpeed_InFullStepsPerSecond = 0.0;
+  currentDirection = 0;
   targetSpeed_InFullStepsPerSecond = 0.0;
+  targetDirection = 0;
   acceleration_InFullStepsPerSecondPerSecond = 200.0;
   millisInitiated = false;
-  currentMillis = 0;
   lastMillis = 0;
-  currentFreqInterval = 0;
+  currentFrequencyInterval = 0;
   motionCompleteStatus = true;
 }
 
@@ -67,6 +68,7 @@ void LEDCStepper::connectToPins(byte stepPinNumber, byte dirPinNumber, byte ledC
 {
   stepPin = stepPinNumber;
   dirPin = dirPinNumber;
+  digitalWrite(dirPin, currentDirection);
   ledChannel = ledChannelNumber;		//LEDC Channel number
   ledcSetup(ledChannel, 0, pwmResolution);	//Bind to LEDC Channel, set initial frequency to 0, set pwmResolution
   ledcAttachPin(stepPin, ledChannel);
@@ -83,6 +85,11 @@ void LEDCStepper::setFreqUpdatePeriod(float freqUpdatePeriodVal)
   freqUpdatePeriod = freqUpdatePeriodVal;
 }
 
+void LEDCStepper::setPWMResolution(byte pwmResolutionVal)
+{
+  pwmResolution = pwmResolutionVal;
+}
+
 void LEDCStepper::setPWMDutyCycle(byte pwmDutyCycleVal)
 {
   pwmDutyCycle = pwmDutyCycleVal;
@@ -90,38 +97,58 @@ void LEDCStepper::setPWMDutyCycle(byte pwmDutyCycleVal)
 
 void LEDCStepper::setupAccelerate(float targetSpeedInFullStepsPerSecond, float accelerationInFullStepsPerSecondPerSecond)
 {
-  targetSpeed_InFullStepsPerSecond = targetSpeedInFullStepsPerSecond;
-  acceleration_InFullStepsPerSecondPerSecond = accelerationInFullStepsPerSecondPerSecond;
+  targetSpeed_InFullStepsPerSecond = abs(targetSpeedInFullStepsPerSecond);
+  if(targetSpeedInFullStepsPerSecond < 0.0){
+    targetDirection = 1;
+  }else{
+    targetDirection = 0;
+  }
+  acceleration_InFullStepsPerSecondPerSecond = abs(accelerationInFullStepsPerSecondPerSecond);
   currentFrequency = round(currentSpeed_InFullStepsPerSecond * micsteps);
   targetFrequency = round(targetSpeed_InFullStepsPerSecond * micsteps);
-  rampTimeinMS = abs(targetSpeed_InFullStepsPerSecond - currentSpeed_InFullStepsPerSecond) / accelerationInFullStepsPerSecondPerSecond * 1000;
-  freqIntervals = round(rampTimeinMS / freqUpdatePeriod);
-  frequencyIntervalInHz = round((targetFrequency - currentFrequency) / freqIntervals);
-  currentFreqInterval = 0;
+  if(targetDirection == currentDirection){
+    rampTimeInMS = abs(targetSpeed_InFullStepsPerSecond - currentSpeed_InFullStepsPerSecond) / accelerationInFullStepsPerSecondPerSecond * 1000;
+  }else{
+    rampTimeInMS = abs(targetSpeed_InFullStepsPerSecond + currentSpeed_InFullStepsPerSecond) / accelerationInFullStepsPerSecondPerSecond * 1000;
+  }
+  frequencyIntervalCount = round(rampTimeInMS / freqUpdatePeriod);
+  if(targetDirection == currentDirection){
+    frequencyIntervalInHz = round((targetFrequency - currentFrequency) / frequencyIntervalCount);
+  }else{
+    frequencyIntervalInHz = round((targetFrequency + currentFrequency) / frequencyIntervalCount);
+  }
+  currentFrequencyInterval = 0;
   motionCompleteStatus = false;
 }
 
 void LEDCStepper::processAccelerate()
 {
-  if(currentSpeed_InFullStepsPerSecond == targetSpeed_InFullStepsPerSecond){
+  if(currentSpeed_InFullStepsPerSecond == targetSpeed_InFullStepsPerSecond && currentDirection == targetDirection){
     return;
   }else{
     if(millisInitiated == false){
-      currentMillis = millis();
-      lastMillis = currentMillis;
+      lastMillis = millis();
       millisInitiated = true;
     }
-    if(currentFreqInterval < freqIntervals){
+    if(currentFrequencyInterval < frequencyIntervalCount){
       if((millis() - lastMillis) >= freqUpdatePeriod){
-        currentFrequency = currentFrequency + frequencyIntervalInHz;
+        if(currentDirection == targetDirection){
+          currentFrequency = currentFrequency + frequencyIntervalInHz;
+        }else{
+          currentFrequency = currentFrequency - frequencyIntervalInHz;
+        }
+        if(currentFrequency < 0){
+          currentDirection = !currentDirection;
+          currentFrequency = abs(currentFrequency);
+          digitalWrite(dirPin, currentDirection);
+        }
         ledcSetup(ledChannel, currentFrequency, pwmResolution);
         ledcWrite(ledChannel, pwmDutyCycle);
         currentSpeed_InFullStepsPerSecond = round(currentFrequency / micsteps);
-        currentMillis = millis();
-        lastMillis = currentMillis;
-        currentFreqInterval++;
+        lastMillis = millis();
+        currentFrequencyInterval++;
       }
-    }if(currentFreqInterval == freqIntervals){
+    }if(currentFrequencyInterval == frequencyIntervalCount){
       currentFrequency = targetFrequency;
       ledcSetup(ledChannel, currentFrequency, pwmResolution);
       ledcWrite(ledChannel, pwmDutyCycle);
@@ -138,31 +165,29 @@ void LEDCStepper::processAccelerateSerialOut(Stream * SerialPort)
     return;
   }else{
     if(millisInitiated == false){
-      currentMillis = millis();
-      lastMillis = currentMillis;
+      lastMillis = millis();
       millisInitiated = true;
       SerialPort->print("millisInitiated: ");
       SerialPort->println(millisInitiated);
-      SerialPort->print("currentMillis: ");
-      SerialPort->print(currentMillis);
+      SerialPort->print("lastMillis: ");
+      SerialPort->print(lastMillis);
       SerialPort->print(" lastMillis: ");
       SerialPort->println(lastMillis);
       SerialPort->print("freqUpdatePeriod: ");
       SerialPort->println(freqUpdatePeriod);
     }
-    if(currentFreqInterval < freqIntervals){
+    if(currentFrequencyInterval < frequencyIntervalCount){
       if((millis() - lastMillis) >= freqUpdatePeriod){
         currentFrequency = currentFrequency + frequencyIntervalInHz;
         ledcSetup(ledChannel, currentFrequency, pwmResolution);
         ledcWrite(ledChannel, pwmDutyCycle);
         currentSpeed_InFullStepsPerSecond = round(currentFrequency / micsteps);
-        currentMillis = millis();
-        lastMillis = currentMillis;
-        currentFreqInterval++;
-        SerialPort->print("currentFreqInterval: ");
-        SerialPort->print(currentFreqInterval);
-        SerialPort->print(" currentMillis: ");
-        SerialPort->print(currentMillis);
+        lastMillis = millis();
+        currentFrequencyInterval++;
+        SerialPort->print("currentFrequencyInterval: ");
+        SerialPort->print(currentFrequencyInterval);
+        SerialPort->print(" lastMillis: ");
+        SerialPort->print(lastMillis);
         SerialPort->print(" targetFrequency: ");
         SerialPort->print(targetFrequency);
         SerialPort->print(" currentFrequency: ");
@@ -170,7 +195,7 @@ void LEDCStepper::processAccelerateSerialOut(Stream * SerialPort)
         SerialPort->print(" currentSpeed: ");
         SerialPort->println(currentSpeed_InFullStepsPerSecond);
       }
-    }if(currentFreqInterval == freqIntervals){
+    }if(currentFrequencyInterval == frequencyIntervalCount){
       currentFrequency = targetFrequency;
       ledcSetup(ledChannel, currentFrequency, pwmResolution);
       ledcWrite(ledChannel, pwmDutyCycle);
@@ -192,14 +217,14 @@ void LEDCStepper::accelerate(float targetSpeedInFullStepsPerSecond, float accele
   acceleration_InFullStepsPerSecondPerSecond = accelerationInFullStepsPerSecondPerSecond;
   currentFrequency = round(currentSpeed_InFullStepsPerSecond * micsteps);
   targetFrequency = round(targetSpeed_InFullStepsPerSecond * micsteps);
-  rampTimeinMS = abs(targetSpeed_InFullStepsPerSecond - currentSpeed_InFullStepsPerSecond) / accelerationInFullStepsPerSecondPerSecond * 1000;
-  freqIntervals = round(rampTimeinMS / freqUpdatePeriod);
-  frequencyIntervalInHz = round((targetFrequency - currentFrequency) / freqIntervals);
-  for (int i = 1; i <= freqIntervals; i++) {
+  rampTimeInMS = abs(targetSpeed_InFullStepsPerSecond - currentSpeed_InFullStepsPerSecond) / accelerationInFullStepsPerSecondPerSecond * 1000;
+  frequencyIntervalCount = round(rampTimeInMS / freqUpdatePeriod);
+  frequencyIntervalInHz = round((targetFrequency - currentFrequency) / frequencyIntervalCount);
+  for (int i = 1; i <= frequencyIntervalCount; i++) {
     currentFrequency = currentFrequency + frequencyIntervalInHz;
     ledcSetup(ledChannel, currentFrequency, pwmResolution);
     ledcWrite(ledChannel, pwmDutyCycle);
-    delay(round(rampTimeinMS / freqIntervals));
+    delay(round(rampTimeInMS / frequencyIntervalCount));
   }
   ledcSetup(ledChannel, targetFrequency, pwmResolution);
   ledcWrite(ledChannel, pwmDutyCycle);
@@ -212,28 +237,28 @@ void LEDCStepper::accelerateSerialOut(Stream * SerialPort, float targetSpeedInFu
   acceleration_InFullStepsPerSecondPerSecond = accelerationInFullStepsPerSecondPerSecond;
   long currentFrequency = round(currentSpeed_InFullStepsPerSecond * micsteps);
   long targetFrequency = round(targetSpeed_InFullStepsPerSecond * micsteps);
-  float rampTimeinMS = abs(targetSpeed_InFullStepsPerSecond - currentSpeed_InFullStepsPerSecond) / accelerationInFullStepsPerSecondPerSecond * 1000;
-  long freqIntervals = round(rampTimeinMS / freqUpdatePeriod);
-  long frequencyIntervalInHz = round((targetFrequency - currentFrequency) / freqIntervals);
+  float rampTimeInMS = abs(targetSpeed_InFullStepsPerSecond - currentSpeed_InFullStepsPerSecond) / accelerationInFullStepsPerSecondPerSecond * 1000;
+  long frequencyIntervalCount = round(rampTimeInMS / freqUpdatePeriod);
+  long frequencyIntervalInHz = round((targetFrequency - currentFrequency) / frequencyIntervalCount);
   SerialPort->print("currentFrequency is: ");
   SerialPort->println(currentFrequency);
   SerialPort->print("targetFrequency is: ");
   SerialPort->println(targetFrequency);
-  SerialPort->print("freqIntervals is: ");
-  SerialPort->println(freqIntervals);
+  SerialPort->print("frequencyIntervalCount is: ");
+  SerialPort->println(frequencyIntervalCount);
   SerialPort->println("frequency delta is: ");
   SerialPort->println(targetFrequency - currentFrequency);
   SerialPort->println("un-rounded frequency interval is: ");
-  SerialPort->println((targetFrequency - currentFrequency) / freqIntervals);
+  SerialPort->println((targetFrequency - currentFrequency) / frequencyIntervalCount);
   SerialPort->print("frequencyIntervalInHz is: ");
   SerialPort->println(frequencyIntervalInHz);
-  for (int i = 1; i <= freqIntervals; i++) {
+  for (int i = 1; i <= frequencyIntervalCount; i++) {
     currentFrequency = currentFrequency + frequencyIntervalInHz;
     ledcSetup(ledChannel, currentFrequency, pwmResolution);
     ledcWrite(ledChannel, pwmDutyCycle);
     SerialPort->print("currentFrequency is: ");
     SerialPort->println(currentFrequency);
-    delay(round(rampTimeinMS / freqIntervals));
+    delay(round(rampTimeInMS / frequencyIntervalCount));
   }
   ledcSetup(ledChannel, targetFrequency, pwmResolution);
   ledcWrite(ledChannel, pwmDutyCycle);
